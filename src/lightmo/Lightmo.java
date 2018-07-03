@@ -70,9 +70,11 @@ public class Lightmo extends BasicGame {
         // full screen
         boolean fs = true;
         // mouse motion/click exit
-        boolean mEsc= false;
+        boolean mEsc = false;
         // done parsing arguments
         boolean done = false;
+        // quit without running Lightmo
+        boolean quit = false;
         int winWidth = 640;
         int winHeight = 480;
         
@@ -84,7 +86,7 @@ public class Lightmo extends BasicGame {
                 mEsc = true;
                 done = true;
             } else if(a.equals("-p") || a.equals("-c")) { // preview/config mode
-                exit();
+                quit = true;
             } else if(a.equals("-f")) { // full screen
                 fs = true;
             } else if(a.equals("-w")) { // windowed
@@ -112,21 +114,25 @@ public class Lightmo extends BasicGame {
             winHeight = gd.getDisplayMode().getHeight();
         }
 
-        Lightmo game = new Lightmo();
-        game.setMouseEscape(mEsc);
+        if(!quit) {
+            Lightmo game = new Lightmo();
+            game.setMouseEscape(mEsc);
 
-        AppGameContainer container = new AppGameContainer(game, winWidth, winHeight, fs);
-        container.setShowFPS(false);
-        container.setUpdateOnlyWhenVisible(false);
-        container.setAlwaysRender(true);
-        container.setMinimumLogicUpdateInterval(16);
-        container.setVSync(true);
-        container.start();
+            AppGameContainer container = new AppGameContainer(game, winWidth, winHeight, fs);
+            container.setMouseGrabbed(fs);
+            container.setShowFPS(false);
+            container.setUpdateOnlyWhenVisible(false);
+            container.setAlwaysRender(true);
+            container.setMinimumLogicUpdateInterval(16);
+            container.setVSync(true);
+            container.start();
+        }
     }
     
     /** Creates a new Lightmo! No arguments, no hassle. */
     public Lightmo() {
         super("Lightmo");
+        mouseEsc = false;
     }
 
     /** Initializes Lightmo to the given GameContainer.
@@ -136,9 +142,7 @@ public class Lightmo extends BasicGame {
      */
     @Override
     public void init(GameContainer gc) throws SlickException {
-        gc.setMouseGrabbed(true);
-        
-        mouseEsc = false;
+        this.gc = gc;
         mouseStart = new Vect(gc.getInput().getMouseX(), 
                 gc.getInput().getMouseY());
         
@@ -154,7 +158,7 @@ public class Lightmo extends BasicGame {
         orb = new Point(
                 rand(field.getWidth()) + (field.getX()),
                 rand(field.getHeight()) + (field.getY()));
-        orbRad = (int)(gc.getHeight() * 0.75);
+        orbRad = (int)((gc.getWidth()+gc.getHeight())/3.0);
         orbImg = buildOrb();
         frameGrad = new GradientFill(rand(frame.getWidth()), 
                 rand(frame.getHeight()), rollColor(), 
@@ -187,9 +191,9 @@ public class Lightmo extends BasicGame {
     public void update(GameContainer gc, int i) throws SlickException {
         // Handles mouse movement exit, if mouse escape is turned on.
         if(mouseEsc) {
-            if(mouseStart.subtract(new Vect(gc.getInput().getMouseX(), 
-                    gc.getInput().getMouseY())).calcLengthSquared() > 100) {
-                exit();
+            if(mouseStart.subtract(new Vect(gc.getInput().getAbsoluteMouseX(), 
+                    gc.getInput().getAbsoluteMouseY())).calcLengthSquared() > 100) {
+                gc.exit();
             }
         }
         
@@ -378,7 +382,7 @@ public class Lightmo extends BasicGame {
     @Override
     public void keyPressed(int key, char c) {
         if(key == Input.KEY_ESCAPE) {
-            exit();
+            gc.exit();
         }
     }
 
@@ -392,13 +396,8 @@ public class Lightmo extends BasicGame {
     @Override
     public void mouseClicked(int button, int x, int y, int clickCount) {
         if(mouseEsc) {
-            exit();
+            gc.exit();
         }
-    }
-    
-    /** Exits the program. */
-    public static void exit() {
-        System.exit(0);
     }
     
     /** Generates a Color palette, based on randomly selected models.
@@ -484,6 +483,8 @@ public class Lightmo extends BasicGame {
         return a.addToCopy(dif);
     }
     
+    /** The GameContainer running this Lightmo. */
+    GameContainer gc;
     /** Whether we will close on mouse motion (as in a screen saver). */
     boolean mouseEsc;
     /** The initial mouse position, for detecting mouse motion 
