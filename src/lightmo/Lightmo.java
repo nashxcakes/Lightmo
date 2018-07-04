@@ -49,9 +49,7 @@ public class Lightmo extends BasicGame {
     public static final int PALETTE_SIZE = 16;
     /** The rate at which the palette modulates toward its next goal. 
      *  Percent per second. */
-    public static final float PALETTE_MOD_SPEED = 0.0025f;
-    /** How long we go until building a new palette goal. Milliseconds. */
-    public static final float PALETTE_DEST_RESET_TIME = 25000;
+    public static final float PALETTE_MOD_SPEED = 0.0165f;
 
     /** 
      *  Runs Lightmo. Command line arguments are as follows:<br>
@@ -265,12 +263,13 @@ public class Lightmo extends BasicGame {
         frameGrad.setEndColor(blend(gradBColorA, gradBColorB, gradBShift));
         
         // update the palette
-        destPaletteTimer += i;
-        if(destPaletteTimer > PALETTE_DEST_RESET_TIME) {
+        paletteShift += PALETTE_MOD_SPEED * i / 1000f;
+        
+        if(paletteShift > 2) {
+            palette = destPal;
             destPal = buildPalette(PALETTE_SIZE);
-            destPaletteTimer = 0;
+            paletteShift = 0;
         }
-        interpolatePalettes(i/1000.0f);
     }
 
     /** Draws Lightmo to the screen.
@@ -346,24 +345,12 @@ public class Lightmo extends BasicGame {
      * @return  The Color. 
      */
     public Color rollColor() {
-        return palette[(int)(Math.random()*palette.length)];
-    }
-
-    /** Blends two colors together, according to the given distribution.
-     *  The dist value should be a float between 0-1, which indicates the 
-     *  percentage of Color b that we will use in the blend. For instance, if 
-     *  dist=0.5f, we will have an even blend. If dist=0.75f, the result will
-     *  be 75% Color b, 25% Color a.
-     * 
-     * @param a     The first Color.
-     * @param b     The second Color.
-     * @param dist  The percent that Color B will have in the blend.
-     * @return      The resulting color.
-     */
-    public Color blend(Color a, Color b, float dist) {
-        float nDist = 1 - dist;
-        return new Color((nDist * a.r) + (dist * b.r), 
-                (nDist * a.g) + (dist * b.g), (nDist * a.b) + (dist * b.b));
+        float shift = paletteShift;
+        if(shift > 1) {
+            shift = 1;
+        }
+        int inx = (int)(Math.random()*PALETTE_SIZE);
+        return blend(palette[inx], destPal[inx], shift);
     }
     
     /** Sets whether to exit the program on mouse motion.
@@ -442,45 +429,47 @@ public class Lightmo extends BasicGame {
         Color[] plt = new Color[size];
         
         for(int i = 0; i < size; i++) {
-            float h = hDst[(int)(Math.random()*hDst.length)];
-            float s = sDst[(int)(Math.random()*sDst.length)];
-            float b = bDst[(int)(Math.random()*bDst.length)];
+            float h = hDst[(int)(Math.random()*hDst.length)]+hShift;
+            float s = sDst[(int)(Math.random()*sDst.length)]+sShift;
+            float b = bDst[(int)(Math.random()*bDst.length)]+bShift;
+            
+            s -= (int)s;
+            b -= (int)b;
             
             java.awt.Color jCol = new java.awt.Color(
-                    java.awt.Color.HSBtoRGB((h+hShift)%1.0f, (s+sShift)%1.0f, (b+bShift)%1.0f));
+                    java.awt.Color.HSBtoRGB(h, s, b));
             plt[i] = new Color(jCol.getRed(), jCol.getBlue(), jCol.getGreen());
         }
         
         return plt;
     };
     
-    /** Interpolates the current Color palette with the destination palette.
-     *  For this to work, both palettes must be the same size.
-     * 
-     * @param delta The delta time value, determining how far we shift the palette.
-     */
-    public void interpolatePalettes(float delta) {
-        for(int i = 0; i < palette.length; i++) {
-            palette[i] = interpolate(palette[i], destPal[i], delta);
-        }
-    }
     
-    /** Interpolates between two colors, shifting Color a slightly toward 
-     *  Color b.
+    /** Blends two colors together, according to the given distribution.
+     *  The dist value should be a float between 0-1, which indicates the 
+     *  percentage of Color b that we will use in the blend. For instance, if 
+     *  dist=0.5f, we will have an even blend. If dist=0.75f, the result will
+     *  be 75% Color b, 25% Color a.
      * 
-     * @param a The starting Color.
-     * @param b The destination Color.
-     * @param delta The delta time value.
-     * @return The interpolated Color.
+     * @param a     The first Color.
+     * @param b     The second Color.
+     * @param dist  The percent that Color B will have in the blend.
+     * @return      The resulting color.
      */
-    public static Color interpolate(Color a, Color b, float delta) {
-        Color dif = new Color(b.r-a.r, b.g-a.g, b.b-a.b);
-        float len = (float)Math.sqrt(dif.r*dif.r + dif.g*dif.g + dif.b*dif.b);
-        if(Math.abs(len)>(PALETTE_MOD_SPEED*delta)) {
-            dif.scale(1.0f/len);
-            dif.scale(PALETTE_MOD_SPEED*delta);
+    public static Color blend(Color a, Color b, float dist) {
+        float[] aHSB = java.awt.Color.RGBtoHSB(
+                a.getRed(), a.getGreen(), a.getBlue(), null);
+        float[] bHSB = java.awt.Color.RGBtoHSB(
+                b.getRed(), b.getGreen(), b.getBlue(), null);
+        float[] c = new float[3];
+        for(int i = 0; i < bHSB.length; i++) {
+            c[i] = aHSB[i]+(bHSB[i]-aHSB[i])*dist;
         }
-        return a.addToCopy(dif);
+        java.awt.Color hsb = java.awt.Color.getHSBColor(c[0],c[1],c[2]);
+        return new Color(hsb.getRed(), hsb.getGreen(), hsb.getBlue());
+        /*float nDist = 1 - dist;
+        return new Color((nDist * a.r) + (dist * b.r), 
+                (nDist * a.g) + (dist * b.g), (nDist * a.b) + (dist * b.b));*/
     }
     
     /** The GameContainer running this Lightmo. */
@@ -495,6 +484,8 @@ public class Lightmo extends BasicGame {
     Color[] palette;
     /** The destination Color palette, which palette will gravitate toward. */
     Color[] destPal;
+    /** How far along we are in shifting from palette to destPal. */
+    float paletteShift = 0;
     /** The timer for updating the destination palette. */
     float destPaletteTimer;
     

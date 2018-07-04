@@ -44,6 +44,7 @@ public class PaletteTest extends BasicGame {
     @Override
     public void init(GameContainer gc) {
         palette = Lightmo.buildPalette(SIZE);
+        destPal = Lightmo.buildPalette(SIZE);
     }
     
     /** Update cycle. Does nothing.
@@ -53,7 +54,12 @@ public class PaletteTest extends BasicGame {
      */
     @Override
     public void update(GameContainer gc, int i) {
-        
+        paletteShift += 50f * (Lightmo.PALETTE_MOD_SPEED * i / 1000f);
+        if(paletteShift > 2) {
+            palette = destPal;
+            destPal = Lightmo.buildPalette(SIZE);
+            paletteShift = 0;
+        }
     }
     
     /** Draws the colors to the screen.
@@ -68,8 +74,18 @@ public class PaletteTest extends BasicGame {
         int hei = gc.getHeight()/(palette.length/cols);
         for(int i = 0; i < palette.length; i++) {
             int row = i/cols;
-            g.setColor(palette[i]);
+            float shift = paletteShift;
+            if(shift > 1) {
+                shift = 1;
+            }
+            g.setColor(Lightmo.blend(palette[i], destPal[i], shift));
             g.fillRect(wid*(i%cols), hei*row, wid, hei);
+            g.setColor(palette[i]);
+            //g.fillRect(wid*(i%cols), hei*row, wid/4, hei/4);
+            g.setColor(destPal[i]);
+            //g.fillRect(wid*(i%cols)+(wid/4), hei*row, wid/4, hei/4);
+            g.setColor(Color.white);
+            g.drawString("PCT: " + ((int)(paletteShift*10000)/100.0f), 15, 40);
         }
     }
     
@@ -83,10 +99,10 @@ public class PaletteTest extends BasicGame {
     public void keyPressed(int key, char c) {
         if(key == Input.KEY_ESCAPE) {
             System.exit(0);
-        } else if(key == Input.KEY_RIGHT) {
-            palette = Lightmo.buildPalette(SIZE);
         }
     }
     
     Color[] palette;
+    Color[] destPal;
+    float paletteShift = 0;
 }
